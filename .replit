@@ -1,0 +1,1 @@
+modules = ["dotnet-10.0", "dotnet-8.0", "dotnet-7.0", "angular-node-24", "bash", "c-clang14", "cpp-clang14", "gcloud", "java-graalvm22.3", "nodejs-22", "python-3.9", "r-4.5", "ruby-3.2", "rust-stable", "typescript-language-server", "web"]
