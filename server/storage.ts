@@ -1,7 +1,11 @@
-import { type SpeedTest, type InsertSpeedTest, type NetworkInfo, type InsertNetworkInfo, type CellTower, type InsertCellTower } from "@shared/schema";
+import { type SpeedTest, type InsertSpeedTest, type NetworkInfo, type InsertNetworkInfo, type CellTower, type InsertCellTower, type User, type UpsertUser } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
+  // User operations (required for Replit Auth)
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  
   // Speed Test operations
   createSpeedTest(speedTest: InsertSpeedTest): Promise<SpeedTest>;
   getSpeedTests(limit?: number): Promise<SpeedTest[]>;
@@ -19,11 +23,13 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
+  private users: Map<string, User>;
   private speedTests: Map<string, SpeedTest>;
   private networkInfos: Map<string, NetworkInfo>;
   private cellTowers: Map<string, CellTower>;
 
   constructor() {
+    this.users = new Map();
     this.speedTests = new Map();
     this.networkInfos = new Map();
     this.cellTowers = new Map();
@@ -91,12 +97,49 @@ export class MemStorage implements IStorage {
     });
   }
 
+  // User operations (required for Replit Auth)
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const existingUser = this.users.get(userData.id!);
+    
+    if (existingUser) {
+      const updatedUser: User = {
+        ...existingUser,
+        ...userData,
+        updatedAt: new Date(),
+      };
+      this.users.set(userData.id!, updatedUser);
+      return updatedUser;
+    } else {
+      const newUser: User = {
+        ...userData,
+        id: userData.id || randomUUID(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        email: userData.email || null,
+        firstName: userData.firstName || null,
+        lastName: userData.lastName || null,
+        profileImageUrl: userData.profileImageUrl || null,
+      };
+      this.users.set(newUser.id, newUser);
+      return newUser;
+    }
+  }
+
   async createSpeedTest(insertSpeedTest: InsertSpeedTest): Promise<SpeedTest> {
     const id = randomUUID();
     const speedTest: SpeedTest = {
       ...insertSpeedTest,
       id,
       timestamp: new Date(),
+      jitter: insertSpeedTest.jitter ?? null,
+      signalStrength: insertSpeedTest.signalStrength ?? null,
+      latitude: insertSpeedTest.latitude ?? null,
+      longitude: insertSpeedTest.longitude ?? null,
+      location: insertSpeedTest.location ?? null,
     };
     this.speedTests.set(id, speedTest);
     return speedTest;
@@ -121,6 +164,10 @@ export class MemStorage implements IStorage {
       ...insertNetworkInfo,
       id,
       timestamp: new Date(),
+      latitude: insertNetworkInfo.latitude ?? null,
+      longitude: insertNetworkInfo.longitude ?? null,
+      frequency: insertNetworkInfo.frequency ?? null,
+      cellId: insertNetworkInfo.cellId ?? null,
     };
     this.networkInfos.set(id, networkInfo);
     return networkInfo;
@@ -134,7 +181,14 @@ export class MemStorage implements IStorage {
 
   async createCellTower(insertCellTower: InsertCellTower): Promise<CellTower> {
     const id = randomUUID();
-    const cellTower: CellTower = { ...insertCellTower, id };
+    const cellTower: CellTower = { 
+      ...insertCellTower, 
+      id,
+      address: insertCellTower.address ?? null,
+      frequency: insertCellTower.frequency ?? null,
+      range: insertCellTower.range ?? null,
+      networkTypes: insertCellTower.networkTypes,
+    };
     this.cellTowers.set(id, cellTower);
     return cellTower;
   }

@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Gauge, Map, User, Signal, Wifi } from "lucide-react";
+import { Gauge, Map, User, Signal, Wifi, LogOut } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { NetworkStatus } from "@/components/network-status";
 import { SpeedTestModal } from "@/components/speed-test-modal";
 import { CarrierDot } from "@/components/carrier-colors";
+import { useAuth } from "@/hooks/useAuth";
 import { type SpeedTest, type CellTower } from "@shared/schema";
 
 export default function Home() {
   const [isSpeedTestOpen, setIsSpeedTestOpen] = useState(false);
+  const { user } = useAuth();
 
   // Get latest speed test
   const { data: speedTests } = useQuery<SpeedTest[]>({
@@ -70,10 +72,36 @@ export default function Home() {
         {/* Header */}
         <div className="bg-gradient-to-r from-primary to-blue-600 text-white px-6 py-8">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold">SaskNet</h1>
-            <Button variant="ghost" size="sm" className="p-2 rounded-full bg-white/20 hover:bg-white/30">
-              <User className="text-xl" />
-            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">SaskNet</h1>
+              {user && (
+                <p className="text-sm text-blue-200">
+                  Welcome back{user.firstName ? `, ${user.firstName}` : ''}!
+                </p>
+              )}
+            </div>
+            <div className="flex items-center space-x-2">
+              {user?.profileImageUrl ? (
+                <img 
+                  src={user.profileImageUrl} 
+                  alt="Profile" 
+                  className="w-8 h-8 rounded-full bg-white/20"
+                  style={{ objectFit: 'cover' } as any}
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                  <User size={16} />
+                </div>
+              )}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="p-2 rounded-full bg-white/20 hover:bg-white/30"
+                onClick={() => window.location.href = "/api/logout"}
+              >
+                <LogOut size={16} />
+              </Button>
+            </div>
           </div>
           <p className="text-blue-100 mb-6">Network Diagnostics & Performance</p>
           
