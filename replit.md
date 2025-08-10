@@ -13,6 +13,7 @@ The system is designed as a full-stack web application with a React-based fronte
 - Integrated **Network Troubleshooting Assistant** across all features
 - Added **Export & Share Reports** functionality via API endpoints
 - Enhanced storage layer with support for all new data models
+- **Fixed deployment configuration** for Cloud Run deployment with proper build scripts and production server setup
 
 # User Preferences
 
