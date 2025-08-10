@@ -2,7 +2,17 @@
 
 SaskNet is a comprehensive mobile network diagnostic web application built to track and analyze carrier performance across Saskatchewan's major telecommunications providers - SaskTel, Bell, Telus, and Rogers. The application provides real-time speed testing capabilities, network performance monitoring, interactive cell tower mapping, and historical data analysis to help users understand and optimize their mobile network connectivity.
 
-The system is designed as a full-stack web application with a React-based frontend optimized for mobile devices and an Express.js backend, focusing on network diagnostics and geospatial data visualization.
+The system is designed as a full-stack web application with a React-based frontend optimized for mobile devices and an Express.js backend, featuring 8 major diagnostic and analysis features for comprehensive network monitoring.
+
+## Recent Changes (January 2025)
+- Implemented **Coverage Heatmap** feature for visualizing network signal strength across regions
+- Added **Carrier Comparison Dashboard** with side-by-side analysis of all 4 carriers
+- Created **Automated Testing Schedule** system for hourly, daily, and weekly tests
+- Built **Crowd-Sourced Outage Map** for community-reported network issues
+- Developed **Data Usage Optimizer** with app-level consumption tracking
+- Integrated **Network Troubleshooting Assistant** across all features
+- Added **Export & Share Reports** functionality via API endpoints
+- Enhanced storage layer with support for all new data models
 
 # User Preferences
 
@@ -20,18 +30,36 @@ The client-side application is built using **React 18** with **TypeScript** and 
 ## Backend Architecture
 The server is built with **Express.js** using **TypeScript** and follows a RESTful API design pattern. The application uses a layered architecture with clear separation between routes, storage logic, and utilities.
 
-**API Design**: RESTful endpoints handle speed test data collection, network information tracking, cell tower management, and user authentication. The API supports filtering by carrier, provides pagination for large datasets, and includes protected routes requiring authentication.
+**API Design**: RESTful endpoints handle comprehensive network diagnostics including:
+- Speed test data collection and analysis
+- Network information and signal strength tracking
+- Cell tower location and coverage management
+- User authentication and session management
+- Carrier comparison with performance metrics
+- Coverage heatmap data aggregation
+- Outage reporting and tracking
+- Automated test scheduling
+- Data usage monitoring and optimization
+- Report generation and export
+
+The API supports filtering by carrier, location-based queries, time-range filtering, provides pagination for large datasets, and includes protected routes requiring authentication.
 
 **Storage Layer**: The application implements an abstraction layer (`IStorage` interface) that currently uses an in-memory storage implementation (`MemStorage`) for development and testing. This design allows for easy migration to persistent database storage without changing the business logic. User authentication data flows through the same interface for consistency.
 
 ## Data Models and Schema
-The application uses **Drizzle ORM** with **Zod** for type-safe database interactions and validation. Five main data models are defined:
+The application uses **Drizzle ORM** with **Zod** for type-safe database interactions and validation. Eleven comprehensive data models are defined:
 
 - **Users**: Stores user profiles from Replit Auth including email, names, and profile images
 - **Sessions**: Manages authentication sessions with expiration and security features
 - **Speed Tests**: Records download/upload speeds, ping, jitter, carrier information, and geolocation data
 - **Network Info**: Tracks real-time network connection details including signal strength and cell tower information  
 - **Cell Towers**: Maintains a database of cell tower locations with carrier-specific coverage information
+- **Coverage Points**: Stores signal strength measurements for coverage heatmap visualization
+- **Network Issues**: Tracks user-reported network problems and service disruptions
+- **Network Predictions**: AI-based predictions for network performance and potential issues
+- **Scheduled Tests**: Manages automated testing schedules and execution times
+- **Data Usage**: Monitors data consumption by app and connection type
+- **Test Reports**: Stores exportable test results and analysis reports
 
 **Database Configuration**: Configured for **PostgreSQL** using **Neon Database** serverless infrastructure, with automatic UUID generation and timestamp tracking.
 
