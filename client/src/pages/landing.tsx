@@ -69,14 +69,15 @@ export default function Landing() {
         </div>
 
         <div className="text-center">
-          <Button 
-            onClick={() => window.location.href = "/api/login"}
-            className="bg-white text-primary hover:bg-gray-100 font-semibold px-8 py-3 rounded-xl shadow-lg"
-            size="lg"
-          >
-            Get Started
-            <ArrowRight className="ml-2" size={20} />
-          </Button>
+          <a href="/api/login">
+            <Button 
+              className="bg-white text-primary hover:bg-gray-100 font-semibold px-8 py-3 rounded-xl shadow-lg"
+              size="lg"
+            >
+              Get Started
+              <ArrowRight className="ml-2" size={20} />
+            </Button>
+          </a>
         </div>
       </div>
 

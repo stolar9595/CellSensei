@@ -187,7 +187,7 @@ export class MemStorage implements IStorage {
       address: insertCellTower.address ?? null,
       frequency: insertCellTower.frequency ?? null,
       range: insertCellTower.range ?? null,
-      networkTypes: insertCellTower.networkTypes,
+      networkTypes: insertCellTower.networkTypes as string[],
     };
     this.cellTowers.set(id, cellTower);
     return cellTower;

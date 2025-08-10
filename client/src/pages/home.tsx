@@ -93,14 +93,15 @@ export default function Home() {
                   <User size={16} />
                 </div>
               )}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="p-2 rounded-full bg-white/20 hover:bg-white/30"
-                onClick={() => window.location.href = "/api/logout"}
-              >
-                <LogOut size={16} />
-              </Button>
+              <a href="/api/logout">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="p-2 rounded-full bg-white/20 hover:bg-white/30"
+                >
+                  <LogOut size={16} />
+                </Button>
+              </a>
             </div>
           </div>
           <p className="text-blue-100 mb-6">Network Diagnostics & Performance</p>

@@ -126,6 +126,6 @@ async function runSpeedTest() {
         ping: Math.round(ping),
         jitter: Math.round(jitter * 10) / 10,
       });
-    }, 15000); // 15 second test duration
+    }, 3000); // 3 second test duration - more reasonable for simulation
   });
 }
