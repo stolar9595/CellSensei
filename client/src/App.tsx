@@ -10,6 +10,10 @@ import SpeedTest from "@/pages/speed-test";
 import TowerMap from "@/pages/tower-map";
 import History from "@/pages/history";
 import Settings from "@/pages/settings";
+import Comparison from "@/pages/comparison";
+import Outages from "@/pages/outages";
+import Schedule from "@/pages/schedule";
+import DataUsagePage from "@/pages/data-usage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -25,6 +29,10 @@ function Router() {
           <Route path="/speed-test" component={SpeedTest} />
           <Route path="/tower-map" component={TowerMap} />
           <Route path="/history" component={History} />
+          <Route path="/comparison" component={Comparison} />
+          <Route path="/outages" component={Outages} />
+          <Route path="/schedule" component={Schedule} />
+          <Route path="/data-usage" component={DataUsagePage} />
           <Route path="/settings" component={Settings} />
         </>
       )}

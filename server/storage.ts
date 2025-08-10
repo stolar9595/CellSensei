@@ -1,4 +1,13 @@
-import { type SpeedTest, type InsertSpeedTest, type NetworkInfo, type InsertNetworkInfo, type CellTower, type InsertCellTower, type User, type UpsertUser } from "@shared/schema";
+import { 
+  type SpeedTest, type InsertSpeedTest, 
+  type NetworkInfo, type InsertNetworkInfo, 
+  type CellTower, type InsertCellTower, 
+  type User, type UpsertUser,
+  type CoveragePoint, type InsertCoveragePoint,
+  type OutageReport, type InsertOutageReport,
+  type ScheduledTest, type InsertScheduledTest,
+  type DataUsage, type InsertDataUsage
+} from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -10,6 +19,7 @@ export interface IStorage {
   createSpeedTest(speedTest: InsertSpeedTest): Promise<SpeedTest>;
   getSpeedTests(limit?: number): Promise<SpeedTest[]>;
   getSpeedTestsByCarrier(carrier: string): Promise<SpeedTest[]>;
+  getSpeedTestsByUser(userId: string): Promise<SpeedTest[]>;
   
   // Network Info operations
   createNetworkInfo(networkInfo: InsertNetworkInfo): Promise<NetworkInfo>;
@@ -20,6 +30,26 @@ export interface IStorage {
   getCellTowers(): Promise<CellTower[]>;
   getCellTowersByCarrier(carrier: string): Promise<CellTower[]>;
   getNearbyTowers(latitude: number, longitude: number, radiusKm: number): Promise<CellTower[]>;
+  
+  // Coverage Point operations
+  createCoveragePoint(point: InsertCoveragePoint): Promise<CoveragePoint>;
+  getCoveragePoints(carrier?: string): Promise<CoveragePoint[]>;
+  getCoverageHeatmap(carrier: string, bounds: { north: number, south: number, east: number, west: number }): Promise<CoveragePoint[]>;
+  
+  // Outage Report operations
+  createOutageReport(report: InsertOutageReport): Promise<OutageReport>;
+  getOutageReports(carrier?: string, resolved?: boolean): Promise<OutageReport[]>;
+  updateOutageStatus(id: string, resolved: boolean): Promise<void>;
+  
+  // Scheduled Test operations
+  createScheduledTest(test: InsertScheduledTest): Promise<ScheduledTest>;
+  getScheduledTests(userId: string): Promise<ScheduledTest[]>;
+  updateScheduledTest(id: string, updates: Partial<ScheduledTest>): Promise<void>;
+  
+  // Data Usage operations
+  createDataUsage(usage: InsertDataUsage): Promise<DataUsage>;
+  getDataUsage(userId: string, days?: number): Promise<DataUsage[]>;
+  getDataUsageByApp(userId: string): Promise<{ appName: string, totalUsage: number }[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -27,12 +57,20 @@ export class MemStorage implements IStorage {
   private speedTests: Map<string, SpeedTest>;
   private networkInfos: Map<string, NetworkInfo>;
   private cellTowers: Map<string, CellTower>;
+  private coveragePoints: Map<string, CoveragePoint>;
+  private outageReports: Map<string, OutageReport>;
+  private scheduledTests: Map<string, ScheduledTest>;
+  private dataUsage: Map<string, DataUsage>;
 
   constructor() {
     this.users = new Map();
     this.speedTests = new Map();
     this.networkInfos = new Map();
     this.cellTowers = new Map();
+    this.coveragePoints = new Map();
+    this.outageReports = new Map();
+    this.scheduledTests = new Map();
+    this.dataUsage = new Map();
     
     // Initialize with some Saskatchewan cell tower data
     this.initializeSaskatchewanTowers();
@@ -135,13 +173,28 @@ export class MemStorage implements IStorage {
       ...insertSpeedTest,
       id,
       timestamp: new Date(),
+      userId: insertSpeedTest.userId ?? null,
       jitter: insertSpeedTest.jitter ?? null,
       signalStrength: insertSpeedTest.signalStrength ?? null,
       latitude: insertSpeedTest.latitude ?? null,
       longitude: insertSpeedTest.longitude ?? null,
       location: insertSpeedTest.location ?? null,
+      isAutoTest: insertSpeedTest.isAutoTest ?? false,
     };
     this.speedTests.set(id, speedTest);
+    
+    // Also create a coverage point from this speed test
+    if (speedTest.latitude && speedTest.longitude) {
+      await this.createCoveragePoint({
+        carrier: speedTest.carrier,
+        latitude: speedTest.latitude,
+        longitude: speedTest.longitude,
+        signalStrength: speedTest.signalStrength ?? -90,
+        downloadSpeed: speedTest.downloadSpeed,
+        uploadSpeed: speedTest.uploadSpeed,
+      });
+    }
+    
     return speedTest;
   }
 
@@ -155,6 +208,12 @@ export class MemStorage implements IStorage {
   async getSpeedTestsByCarrier(carrier: string): Promise<SpeedTest[]> {
     return Array.from(this.speedTests.values())
       .filter(test => test.carrier === carrier)
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  }
+
+  async getSpeedTestsByUser(userId: string): Promise<SpeedTest[]> {
+    return Array.from(this.speedTests.values())
+      .filter(test => test.userId === userId)
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   }
 
@@ -218,6 +277,133 @@ export class MemStorage implements IStorage {
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
+  }
+
+  // Coverage Point operations
+  async createCoveragePoint(point: InsertCoveragePoint): Promise<CoveragePoint> {
+    const id = randomUUID();
+    const coveragePoint: CoveragePoint = {
+      ...point,
+      id,
+      timestamp: new Date(),
+    };
+    this.coveragePoints.set(id, coveragePoint);
+    return coveragePoint;
+  }
+
+  async getCoveragePoints(carrier?: string): Promise<CoveragePoint[]> {
+    const points = Array.from(this.coveragePoints.values());
+    if (carrier) {
+      return points.filter(p => p.carrier === carrier);
+    }
+    return points;
+  }
+
+  async getCoverageHeatmap(carrier: string, bounds: { north: number, south: number, east: number, west: number }): Promise<CoveragePoint[]> {
+    return Array.from(this.coveragePoints.values())
+      .filter(p => p.carrier === carrier && 
+        p.latitude >= bounds.south && 
+        p.latitude <= bounds.north &&
+        p.longitude >= bounds.west && 
+        p.longitude <= bounds.east
+      );
+  }
+
+  // Outage Report operations
+  async createOutageReport(report: InsertOutageReport): Promise<OutageReport> {
+    const id = randomUUID();
+    const outageReport: OutageReport = {
+      ...report,
+      id,
+      timestamp: new Date(),
+      userId: report.userId ?? null,
+      description: report.description ?? null,
+      resolved: report.resolved ?? false,
+    };
+    this.outageReports.set(id, outageReport);
+    return outageReport;
+  }
+
+  async getOutageReports(carrier?: string, resolved?: boolean): Promise<OutageReport[]> {
+    let reports = Array.from(this.outageReports.values());
+    if (carrier) {
+      reports = reports.filter(r => r.carrier === carrier);
+    }
+    if (resolved !== undefined) {
+      reports = reports.filter(r => r.resolved === resolved);
+    }
+    return reports.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  }
+
+  async updateOutageStatus(id: string, resolved: boolean): Promise<void> {
+    const report = this.outageReports.get(id);
+    if (report) {
+      report.resolved = resolved;
+    }
+  }
+
+  // Scheduled Test operations
+  async createScheduledTest(test: InsertScheduledTest): Promise<ScheduledTest> {
+    const id = randomUUID();
+    const scheduledTest: ScheduledTest = {
+      ...test,
+      id,
+      createdAt: new Date(),
+      enabled: test.enabled ?? true,
+      times: (test.times as string[]) ?? null,
+      lastRun: test.lastRun ?? null,
+      nextRun: test.nextRun ?? null,
+    };
+    this.scheduledTests.set(id, scheduledTest);
+    return scheduledTest;
+  }
+
+  async getScheduledTests(userId: string): Promise<ScheduledTest[]> {
+    return Array.from(this.scheduledTests.values())
+      .filter(t => t.userId === userId);
+  }
+
+  async updateScheduledTest(id: string, updates: Partial<ScheduledTest>): Promise<void> {
+    const test = this.scheduledTests.get(id);
+    if (test) {
+      Object.assign(test, updates);
+    }
+  }
+
+  // Data Usage operations
+  async createDataUsage(usage: InsertDataUsage): Promise<DataUsage> {
+    const id = randomUUID();
+    const dataUsage: DataUsage = {
+      ...usage,
+      id,
+      timestamp: new Date(),
+      carrier: usage.carrier ?? null,
+    };
+    this.dataUsage.set(id, dataUsage);
+    return dataUsage;
+  }
+
+  async getDataUsage(userId: string, days: number = 30): Promise<DataUsage[]> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    
+    return Array.from(this.dataUsage.values())
+      .filter(u => u.userId === userId && u.timestamp >= cutoffDate)
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  }
+
+  async getDataUsageByApp(userId: string): Promise<{ appName: string, totalUsage: number }[]> {
+    const usage = await this.getDataUsage(userId, 30);
+    const appUsageMap = new Map<string, number>();
+    
+    for (const u of usage) {
+      const current = appUsageMap.get(u.appName) || 0;
+      appUsageMap.set(u.appName, current + u.dataConsumed);
+    }
+    
+    return Array.from(appUsageMap.entries())
+      .map(([appName, totalUsage]) => ({ appName, totalUsage }))
+      .sort((a, b) => b.totalUsage - a.totalUsage);
   }
 }
 

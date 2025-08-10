@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Gauge, Map, User, Signal, Wifi, LogOut } from "lucide-react";
+import { Gauge, Map, User, Signal, Wifi, LogOut, TrendingUp, AlertTriangle, Clock, PieChart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BottomNavigation } from "@/components/bottom-navigation";
@@ -127,6 +127,50 @@ export default function Home() {
                 <div className="font-semibold">Tower Map</div>
                 <div className="text-xs opacity-90">Find Towers</div>
               </Button>
+            </Link>
+          </div>
+
+          {/* New Features Grid */}
+          <h3 className="font-semibold text-gray-900 mb-3">More Features</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <Link href="/comparison">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-4">
+                  <TrendingUp className="text-primary mb-2" size={20} />
+                  <h4 className="font-medium text-sm">Compare</h4>
+                  <p className="text-xs text-gray-600">Carrier analysis</p>
+                </CardContent>
+              </Card>
+            </Link>
+            
+            <Link href="/outages">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-4">
+                  <AlertTriangle className="text-orange-500 mb-2" size={20} />
+                  <h4 className="font-medium text-sm">Outages</h4>
+                  <p className="text-xs text-gray-600">Report issues</p>
+                </CardContent>
+              </Card>
+            </Link>
+            
+            <Link href="/schedule">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-4">
+                  <Clock className="text-blue-500 mb-2" size={20} />
+                  <h4 className="font-medium text-sm">Schedule</h4>
+                  <p className="text-xs text-gray-600">Auto tests</p>
+                </CardContent>
+              </Card>
+            </Link>
+            
+            <Link href="/data-usage">
+              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                <CardContent className="p-4">
+                  <PieChart className="text-purple-500 mb-2" size={20} />
+                  <h4 className="font-medium text-sm">Data Usage</h4>
+                  <p className="text-xs text-gray-600">Track usage</p>
+                </CardContent>
+              </Card>
             </Link>
           </div>
         </div>
