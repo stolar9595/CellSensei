@@ -14,6 +14,9 @@ The system is designed as a full-stack web application with a React-based fronte
 - Added **Export & Share Reports** functionality via API endpoints
 - Enhanced storage layer with support for all new data models
 - **Fixed deployment configuration** for Cloud Run deployment with proper build scripts and production server setup
+- **Migrated to PostgreSQL database** from in-memory storage for data persistence (January 2025)
+- **Fixed authentication configuration** with proper database-backed session storage
+- **Resolved all type issues** in storage implementation for production deployment
 
 # User Preferences
 
@@ -45,7 +48,7 @@ The server is built with **Express.js** using **TypeScript** and follows a RESTf
 
 The API supports filtering by carrier, location-based queries, time-range filtering, provides pagination for large datasets, and includes protected routes requiring authentication.
 
-**Storage Layer**: The application implements an abstraction layer (`IStorage` interface) that currently uses an in-memory storage implementation (`MemStorage`) for development and testing. This design allows for easy migration to persistent database storage without changing the business logic. User authentication data flows through the same interface for consistency.
+**Storage Layer**: The application implements an abstraction layer (`IStorage` interface) using **PostgreSQL database storage** (`DatabaseStorage`) for persistent data storage across all operations. The database is managed through **Drizzle ORM** for type-safe database interactions. User authentication data and all application data are stored persistently in the PostgreSQL database, ensuring data survives application restarts.
 
 ## Data Models and Schema
 The application uses **Drizzle ORM** with **Zod** for type-safe database interactions and validation. Eleven comprehensive data models are defined:

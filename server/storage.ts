@@ -1,4 +1,6 @@
 import { 
+  users, speedTests, networkInfo, cellTowers, coveragePoints,
+  outageReports, scheduledTests, dataUsage,
   type SpeedTest, type InsertSpeedTest, 
   type NetworkInfo, type InsertNetworkInfo, 
   type CellTower, type InsertCellTower, 
@@ -8,7 +10,8 @@ import {
   type ScheduledTest, type InsertScheduledTest,
   type DataUsage, type InsertDataUsage
 } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq, and, desc, gte, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -52,136 +55,33 @@ export interface IStorage {
   getDataUsageByApp(userId: string): Promise<{ appName: string, totalUsage: number }[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private speedTests: Map<string, SpeedTest>;
-  private networkInfos: Map<string, NetworkInfo>;
-  private cellTowers: Map<string, CellTower>;
-  private coveragePoints: Map<string, CoveragePoint>;
-  private outageReports: Map<string, OutageReport>;
-  private scheduledTests: Map<string, ScheduledTest>;
-  private dataUsage: Map<string, DataUsage>;
-
-  constructor() {
-    this.users = new Map();
-    this.speedTests = new Map();
-    this.networkInfos = new Map();
-    this.cellTowers = new Map();
-    this.coveragePoints = new Map();
-    this.outageReports = new Map();
-    this.scheduledTests = new Map();
-    this.dataUsage = new Map();
-    
-    // Initialize with some Saskatchewan cell tower data
-    this.initializeSaskatchewanTowers();
-  }
-
-  private initializeSaskatchewanTowers() {
-    const towers: InsertCellTower[] = [
-      {
-        towerId: "SK-SASK-001",
-        carrier: "SaskTel",
-        latitude: 52.1332,
-        longitude: -106.6700,
-        address: "Saskatoon Downtown",
-        networkTypes: ["4G LTE", "5G"],
-        frequency: "Band 4 (1700 MHz)",
-        range: 5.2
-      },
-      {
-        towerId: "SK-SASK-002",
-        carrier: "SaskTel",
-        latitude: 50.4452,
-        longitude: -104.6189,
-        address: "Regina Central",
-        networkTypes: ["4G LTE", "5G"],
-        frequency: "Band 4 (1700 MHz)",
-        range: 4.8
-      },
-      {
-        towerId: "SK-BELL-001",
-        carrier: "Bell",
-        latitude: 52.1445,
-        longitude: -106.6607,
-        address: "Saskatoon North",
-        networkTypes: ["4G LTE", "5G"],
-        frequency: "Band 7 (2600 MHz)",
-        range: 4.5
-      },
-      {
-        towerId: "SK-TELUS-001",
-        carrier: "Telus",
-        latitude: 50.4647,
-        longitude: -104.6067,
-        address: "Regina East",
-        networkTypes: ["4G LTE"],
-        frequency: "Band 4 (1700 MHz)",
-        range: 3.8
-      },
-      {
-        towerId: "SK-ROGERS-001",
-        carrier: "Rogers",
-        latitude: 52.1167,
-        longitude: -106.6333,
-        address: "Saskatoon West",
-        networkTypes: ["4G LTE"],
-        frequency: "Band 4 (1700 MHz)",
-        range: 4.2
-      }
-    ];
-
-    towers.forEach(tower => {
-      this.createCellTower(tower);
-    });
-  }
-
+export class DatabaseStorage implements IStorage {
   // User operations (required for Replit Auth)
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    const existingUser = this.users.get(userData.id!);
-    
-    if (existingUser) {
-      const updatedUser: User = {
-        ...existingUser,
-        ...userData,
-        updatedAt: new Date(),
-      };
-      this.users.set(userData.id!, updatedUser);
-      return updatedUser;
-    } else {
-      const newUser: User = {
-        ...userData,
-        id: userData.id || randomUUID(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        email: userData.email || null,
-        firstName: userData.firstName || null,
-        lastName: userData.lastName || null,
-        profileImageUrl: userData.profileImageUrl || null,
-      };
-      this.users.set(newUser.id, newUser);
-      return newUser;
-    }
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
   }
 
   async createSpeedTest(insertSpeedTest: InsertSpeedTest): Promise<SpeedTest> {
-    const id = randomUUID();
-    const speedTest: SpeedTest = {
-      ...insertSpeedTest,
-      id,
-      timestamp: new Date(),
-      userId: insertSpeedTest.userId ?? null,
-      jitter: insertSpeedTest.jitter ?? null,
-      signalStrength: insertSpeedTest.signalStrength ?? null,
-      latitude: insertSpeedTest.latitude ?? null,
-      longitude: insertSpeedTest.longitude ?? null,
-      location: insertSpeedTest.location ?? null,
-      isAutoTest: insertSpeedTest.isAutoTest ?? false,
-    };
-    this.speedTests.set(id, speedTest);
+    const [speedTest] = await db
+      .insert(speedTests)
+      .values(insertSpeedTest)
+      .returning();
     
     // Also create a coverage point from this speed test
     if (speedTest.latitude && speedTest.longitude) {
@@ -199,197 +99,215 @@ export class MemStorage implements IStorage {
   }
 
   async getSpeedTests(limit = 50): Promise<SpeedTest[]> {
-    const tests = Array.from(this.speedTests.values())
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-      .slice(0, limit);
+    const tests = await db
+      .select()
+      .from(speedTests)
+      .orderBy(desc(speedTests.timestamp))
+      .limit(limit);
     return tests;
   }
 
   async getSpeedTestsByCarrier(carrier: string): Promise<SpeedTest[]> {
-    return Array.from(this.speedTests.values())
-      .filter(test => test.carrier === carrier)
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    return await db
+      .select()
+      .from(speedTests)
+      .where(eq(speedTests.carrier, carrier))
+      .orderBy(desc(speedTests.timestamp));
   }
 
   async getSpeedTestsByUser(userId: string): Promise<SpeedTest[]> {
-    return Array.from(this.speedTests.values())
-      .filter(test => test.userId === userId)
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    return await db
+      .select()
+      .from(speedTests)
+      .where(eq(speedTests.userId, userId))
+      .orderBy(desc(speedTests.timestamp));
   }
 
   async createNetworkInfo(insertNetworkInfo: InsertNetworkInfo): Promise<NetworkInfo> {
-    const id = randomUUID();
-    const networkInfo: NetworkInfo = {
-      ...insertNetworkInfo,
-      id,
-      timestamp: new Date(),
-      latitude: insertNetworkInfo.latitude ?? null,
-      longitude: insertNetworkInfo.longitude ?? null,
-      frequency: insertNetworkInfo.frequency ?? null,
-      cellId: insertNetworkInfo.cellId ?? null,
-    };
-    this.networkInfos.set(id, networkInfo);
-    return networkInfo;
+    const [info] = await db
+      .insert(networkInfo)
+      .values(insertNetworkInfo)
+      .returning();
+    return info;
   }
 
   async getLatestNetworkInfo(): Promise<NetworkInfo | undefined> {
-    const infos = Array.from(this.networkInfos.values())
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    return infos[0];
+    const [latest] = await db
+      .select()
+      .from(networkInfo)
+      .orderBy(desc(networkInfo.timestamp))
+      .limit(1);
+    return latest;
   }
 
   async createCellTower(insertCellTower: InsertCellTower): Promise<CellTower> {
-    const id = randomUUID();
-    const cellTower: CellTower = { 
-      ...insertCellTower, 
-      id,
-      address: insertCellTower.address ?? null,
-      frequency: insertCellTower.frequency ?? null,
-      range: insertCellTower.range ?? null,
-      networkTypes: insertCellTower.networkTypes as string[],
-    };
-    this.cellTowers.set(id, cellTower);
-    return cellTower;
+    const [tower] = await db
+      .insert(cellTowers)
+      .values([insertCellTower])
+      .onConflictDoNothing({ target: cellTowers.towerId })
+      .returning();
+    
+    // If conflict, return existing tower
+    if (!tower) {
+      const [existing] = await db
+        .select()
+        .from(cellTowers)
+        .where(eq(cellTowers.towerId, insertCellTower.towerId));
+      return existing;
+    }
+    
+    return tower;
   }
 
   async getCellTowers(): Promise<CellTower[]> {
-    return Array.from(this.cellTowers.values());
+    return await db.select().from(cellTowers);
   }
 
   async getCellTowersByCarrier(carrier: string): Promise<CellTower[]> {
-    return Array.from(this.cellTowers.values())
-      .filter(tower => tower.carrier === carrier);
+    return await db
+      .select()
+      .from(cellTowers)
+      .where(eq(cellTowers.carrier, carrier));
   }
 
   async getNearbyTowers(latitude: number, longitude: number, radiusKm: number): Promise<CellTower[]> {
-    return Array.from(this.cellTowers.values()).filter(tower => {
-      const distance = this.calculateDistance(latitude, longitude, tower.latitude, tower.longitude);
-      return distance <= radiusKm;
-    });
-  }
-
-  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    // Using a simple approximation for distance calculation in SQL
+    // 1 degree latitude ≈ 111 km, 1 degree longitude ≈ 111 km * cos(latitude)
+    const latDegrees = radiusKm / 111;
+    const lonDegrees = radiusKm / (111 * Math.cos(latitude * Math.PI / 180));
+    
+    return await db
+      .select()
+      .from(cellTowers)
+      .where(
+        and(
+          gte(cellTowers.latitude, latitude - latDegrees),
+          sql`${cellTowers.latitude} <= ${latitude + latDegrees}`,
+          gte(cellTowers.longitude, longitude - lonDegrees),
+          sql`${cellTowers.longitude} <= ${longitude + lonDegrees}`
+        )
+      );
   }
 
   // Coverage Point operations
   async createCoveragePoint(point: InsertCoveragePoint): Promise<CoveragePoint> {
-    const id = randomUUID();
-    const coveragePoint: CoveragePoint = {
-      ...point,
-      id,
-      timestamp: new Date(),
-    };
-    this.coveragePoints.set(id, coveragePoint);
+    const [coveragePoint] = await db
+      .insert(coveragePoints)
+      .values(point)
+      .returning();
     return coveragePoint;
   }
 
   async getCoveragePoints(carrier?: string): Promise<CoveragePoint[]> {
-    const points = Array.from(this.coveragePoints.values());
     if (carrier) {
-      return points.filter(p => p.carrier === carrier);
+      return await db
+        .select()
+        .from(coveragePoints)
+        .where(eq(coveragePoints.carrier, carrier));
     }
-    return points;
+    return await db.select().from(coveragePoints);
   }
 
   async getCoverageHeatmap(carrier: string, bounds: { north: number, south: number, east: number, west: number }): Promise<CoveragePoint[]> {
-    return Array.from(this.coveragePoints.values())
-      .filter(p => p.carrier === carrier && 
-        p.latitude >= bounds.south && 
-        p.latitude <= bounds.north &&
-        p.longitude >= bounds.west && 
-        p.longitude <= bounds.east
+    return await db
+      .select()
+      .from(coveragePoints)
+      .where(
+        and(
+          eq(coveragePoints.carrier, carrier),
+          gte(coveragePoints.latitude, bounds.south),
+          sql`${coveragePoints.latitude} <= ${bounds.north}`,
+          gte(coveragePoints.longitude, bounds.west),
+          sql`${coveragePoints.longitude} <= ${bounds.east}`
+        )
       );
   }
 
   // Outage Report operations
   async createOutageReport(report: InsertOutageReport): Promise<OutageReport> {
-    const id = randomUUID();
-    const outageReport: OutageReport = {
-      ...report,
-      id,
-      timestamp: new Date(),
-      userId: report.userId ?? null,
-      description: report.description ?? null,
-      resolved: report.resolved ?? false,
-    };
-    this.outageReports.set(id, outageReport);
+    const [outageReport] = await db
+      .insert(outageReports)
+      .values(report)
+      .returning();
     return outageReport;
   }
 
   async getOutageReports(carrier?: string, resolved?: boolean): Promise<OutageReport[]> {
-    let reports = Array.from(this.outageReports.values());
+    const conditions = [];
     if (carrier) {
-      reports = reports.filter(r => r.carrier === carrier);
+      conditions.push(eq(outageReports.carrier, carrier));
     }
     if (resolved !== undefined) {
-      reports = reports.filter(r => r.resolved === resolved);
+      conditions.push(eq(outageReports.resolved, resolved));
     }
-    return reports.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    
+    if (conditions.length > 0) {
+      return await db
+        .select()
+        .from(outageReports)
+        .where(and(...conditions))
+        .orderBy(desc(outageReports.timestamp));
+    }
+    
+    return await db
+      .select()
+      .from(outageReports)
+      .orderBy(desc(outageReports.timestamp));
   }
 
   async updateOutageStatus(id: string, resolved: boolean): Promise<void> {
-    const report = this.outageReports.get(id);
-    if (report) {
-      report.resolved = resolved;
-    }
+    await db
+      .update(outageReports)
+      .set({ resolved })
+      .where(eq(outageReports.id, id));
   }
 
   // Scheduled Test operations
   async createScheduledTest(test: InsertScheduledTest): Promise<ScheduledTest> {
-    const id = randomUUID();
-    const scheduledTest: ScheduledTest = {
-      ...test,
-      id,
-      createdAt: new Date(),
-      enabled: test.enabled ?? true,
-      times: (test.times as string[]) ?? null,
-      lastRun: test.lastRun ?? null,
-      nextRun: test.nextRun ?? null,
-    };
-    this.scheduledTests.set(id, scheduledTest);
+    const [scheduledTest] = await db
+      .insert(scheduledTests)
+      .values([test])
+      .returning();
     return scheduledTest;
   }
 
   async getScheduledTests(userId: string): Promise<ScheduledTest[]> {
-    return Array.from(this.scheduledTests.values())
-      .filter(t => t.userId === userId);
+    return await db
+      .select()
+      .from(scheduledTests)
+      .where(eq(scheduledTests.userId, userId));
   }
 
   async updateScheduledTest(id: string, updates: Partial<ScheduledTest>): Promise<void> {
-    const test = this.scheduledTests.get(id);
-    if (test) {
-      Object.assign(test, updates);
-    }
+    await db
+      .update(scheduledTests)
+      .set(updates)
+      .where(eq(scheduledTests.id, id));
   }
 
   // Data Usage operations
   async createDataUsage(usage: InsertDataUsage): Promise<DataUsage> {
-    const id = randomUUID();
-    const dataUsage: DataUsage = {
-      ...usage,
-      id,
-      timestamp: new Date(),
-      carrier: usage.carrier ?? null,
-    };
-    this.dataUsage.set(id, dataUsage);
-    return dataUsage;
+    const [dataUsageEntry] = await db
+      .insert(dataUsage)
+      .values(usage)
+      .returning();
+    return dataUsageEntry;
   }
 
   async getDataUsage(userId: string, days: number = 30): Promise<DataUsage[]> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
     
-    return Array.from(this.dataUsage.values())
-      .filter(u => u.userId === userId && u.timestamp >= cutoffDate)
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    return await db
+      .select()
+      .from(dataUsage)
+      .where(
+        and(
+          eq(dataUsage.userId, userId),
+          gte(dataUsage.timestamp, cutoffDate)
+        )
+      )
+      .orderBy(desc(dataUsage.timestamp));
   }
 
   async getDataUsageByApp(userId: string): Promise<{ appName: string, totalUsage: number }[]> {
@@ -407,4 +325,73 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Initialize database with Saskatchewan tower data
+async function initializeSaskatchewanTowers() {
+  const storage = new DatabaseStorage();
+  
+  const towers: InsertCellTower[] = [
+    {
+      towerId: "SK-SASK-001",
+      carrier: "SaskTel",
+      latitude: 52.1332,
+      longitude: -106.6700,
+      address: "Saskatoon Downtown",
+      networkTypes: ["4G LTE", "5G"],
+      frequency: "Band 4 (1700 MHz)",
+      range: 5.2
+    },
+    {
+      towerId: "SK-SASK-002",
+      carrier: "SaskTel",
+      latitude: 50.4452,
+      longitude: -104.6189,
+      address: "Regina Central",
+      networkTypes: ["4G LTE", "5G"],
+      frequency: "Band 4 (1700 MHz)",
+      range: 4.8
+    },
+    {
+      towerId: "SK-BELL-001",
+      carrier: "Bell",
+      latitude: 52.1445,
+      longitude: -106.6607,
+      address: "Saskatoon North",
+      networkTypes: ["4G LTE", "5G"],
+      frequency: "Band 7 (2600 MHz)",
+      range: 4.5
+    },
+    {
+      towerId: "SK-TELUS-001",
+      carrier: "Telus",
+      latitude: 50.4647,
+      longitude: -104.6067,
+      address: "Regina East",
+      networkTypes: ["4G LTE"],
+      frequency: "Band 4 (1700 MHz)",
+      range: 3.8
+    },
+    {
+      towerId: "SK-ROGERS-001",
+      carrier: "Rogers",
+      latitude: 52.1167,
+      longitude: -106.6333,
+      address: "Saskatoon West",
+      networkTypes: ["4G LTE"],
+      frequency: "Band 4 (1700 MHz)",
+      range: 4.2
+    }
+  ];
+
+  for (const tower of towers) {
+    try {
+      await storage.createCellTower(tower);
+    } catch (error) {
+      // Tower might already exist, ignore the error
+    }
+  }
+}
+
+export const storage = new DatabaseStorage();
+
+// Initialize towers on startup (non-blocking)
+initializeSaskatchewanTowers().catch(console.error);
