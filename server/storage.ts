@@ -143,7 +143,10 @@ export class DatabaseStorage implements IStorage {
   async createCellTower(insertCellTower: InsertCellTower): Promise<CellTower> {
     const [tower] = await db
       .insert(cellTowers)
-      .values([insertCellTower])
+      .values([{
+        ...insertCellTower,
+        networkTypes: insertCellTower.networkTypes as any
+      }])
       .onConflictDoNothing({ target: cellTowers.towerId })
       .returning();
     
@@ -266,7 +269,10 @@ export class DatabaseStorage implements IStorage {
   async createScheduledTest(test: InsertScheduledTest): Promise<ScheduledTest> {
     const [scheduledTest] = await db
       .insert(scheduledTests)
-      .values([test])
+      .values([{
+        ...test,
+        times: test.times as any
+      }])
       .returning();
     return scheduledTest;
   }
