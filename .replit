@@ -11,3 +11,6 @@ defaultBucketID = "replit-objstore-0f160c75-e6a2-46b0-b55d-ce81e072a79d"
 
 [nix]
 channel = "stable-25_05"
+[deployment]
+run = ["npm", "run", "start"]
+deploymentTarget = "cloudrun"
