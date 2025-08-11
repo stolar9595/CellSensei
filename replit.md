@@ -14,6 +14,7 @@ The system is designed as a full-stack web application with a React-based fronte
 - Added **Export & Share Reports** functionality via API endpoints
 - Enhanced storage layer with support for all new data models
 - **Fixed deployment configuration** for Cloud Run deployment with proper build scripts and production server setup
+- **Updated deployment configuration** with production-ready TypeScript settings and verified build process (August 2025)
 - **Migrated to PostgreSQL database** from in-memory storage for data persistence (January 2025)
 - **Fixed authentication configuration** with proper database-backed session storage
 - **Resolved all type issues** in storage implementation for production deployment
@@ -115,3 +116,41 @@ The application uses **Replit Auth** with **OpenID Connect** for user authentica
 - **Navigator API**: Network information detection and carrier identification
 
 The application is designed to be self-contained with minimal external service dependencies, focusing on client-side network diagnostics and browser-based geolocation services.
+
+# Deployment Configuration
+
+## Cloud Run Deployment Setup
+The application is configured for deployment on Replit's Cloud Run platform with the following configuration:
+
+**Production Build Process**:
+- `npm run build`: Builds both frontend (Vite) and backend (ESBuild) for production
+- Frontend assets are built to `dist/public/` directory
+- Backend server is bundled to `dist/index.js`
+- Production start command: `npm run start` (runs `NODE_ENV=production node dist/index.js`)
+
+**Required Deployment Configuration**:
+The `.replit` file must include the following deployment section (configured through Replit interface):
+```toml
+[deployment]
+run = ["npm", "run", "start"]
+deploymentTarget = "cloudrun"
+```
+
+**Production Server Configuration**:
+- Server listens on `0.0.0.0:5000` (required for Cloud Run)
+- Port configured via `PORT` environment variable (defaults to 5000)
+- In production mode, serves static files from `dist/public/`
+- Includes proper error handling and graceful shutdown
+
+**Database Configuration**:
+- Uses PostgreSQL database via `DATABASE_URL` environment variable
+- Database connection configured for production environment
+- Session storage persisted to database for scalability
+
+**Build Verification**:
+All deployment requirements have been tested and verified:
+- ✅ Production build script creates correct directory structure
+- ✅ Start script successfully runs production server
+- ✅ TypeScript configuration supports production builds
+- ✅ Static file serving configured for built assets
+- ✅ Database connections work in production mode
