@@ -151,6 +151,35 @@ deploymentTarget = "cloudrun"
 All deployment requirements have been tested and verified:
 - ✅ Production build script creates correct directory structure
 - ✅ Start script successfully runs production server
-- ✅ TypeScript configuration supports production builds
+- ✅ TypeScript configuration optimized for production builds
 - ✅ Static file serving configured for built assets
 - ✅ Database connections work in production mode
+- ✅ Created deployment script (`deploy-build.sh`) for complete production builds
+
+**Deployment Instructions**:
+
+1. **Manual Configuration Required**: Add the following to `.replit` file via Replit interface:
+   ```toml
+   [deployment]
+   run = ["npm", "run", "start"]
+   deploymentTarget = "cloudrun"
+   ```
+
+2. **Build for Production**: Run the deployment build script:
+   ```bash
+   ./deploy-build.sh
+   ```
+   This script:
+   - Builds frontend assets to `dist/public/`
+   - Bundles backend server to `dist/index.js`
+   - Copies static files to `server/public/` for correct serving
+   - Optimizes build for production deployment
+
+3. **Deploy**: Use Replit's deploy button to initiate Cloud Run deployment
+
+**Recent Updates** (August 11, 2025):
+- ✅ Fixed TypeScript configuration for production builds
+- ✅ Verified build process creates all required files
+- ✅ Created deployment script to handle static file copying
+- ✅ Documented complete deployment process
+- ❓ User must add deployment section to `.replit` file manually

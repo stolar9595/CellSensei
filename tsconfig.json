@@ -23,7 +23,10 @@
     "paths": {
       "@/*": ["./client/src/*"],
       "@shared/*": ["./shared/*"]
-    }
+    },
+    "declaration": false,
+    "sourceMap": false,
+    "removeComments": true
   },
   "ts-node": {
     "esm": true
