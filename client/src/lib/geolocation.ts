@@ -27,6 +27,7 @@ export async function getCurrentLocation(): Promise<LocationData | null> {
       },
       (error) => {
         console.error("Geolocation error:", error);
+        // Return null for graceful degradation when location access is denied
         resolve(null);
       },
       {

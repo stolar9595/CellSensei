@@ -124,6 +124,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Ping endpoint for speed test measurement
+  app.head("/api/ping", (req, res) => {
+    res.status(200).end();
+  });
+
+  // Upload endpoint for speed test measurement
+  app.post("/api/speed-test/upload", (req, res) => {
+    // Simply accept the upload data and return success
+    res.status(200).json({ success: true });
+  });
+
   // Speed Test Execution
   app.post("/api/speed-test/run", async (req, res) => {
     try {

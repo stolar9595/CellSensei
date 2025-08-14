@@ -137,7 +137,7 @@ export default function Schedule() {
                       {getFrequencyLabel(test.frequency)}
                     </CardTitle>
                     <Switch 
-                      checked={test.enabled}
+                      checked={test.enabled ?? false}
                       onCheckedChange={() => handleToggleSchedule(test)}
                     />
                   </div>

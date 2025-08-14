@@ -27,10 +27,11 @@ export async function runSpeedTest(): Promise<{
 async function measurePing(): Promise<number> {
   const start = performance.now();
   try {
-    await fetch('/ping-test', { method: 'HEAD' });
+    await fetch('/api/ping', { method: 'HEAD' });
     const end = performance.now();
     return Math.round(end - start);
-  } catch {
+  } catch (error) {
+    console.error('Ping measurement failed:', error);
     return 999;
   }
 }
@@ -49,7 +50,8 @@ async function measureDownloadSpeed(): Promise<number> {
     const speedMbps = (testSize * 8) / (duration * 1000000); // Convert to Mbps
     
     return Math.round(speedMbps * 10) / 10;
-  } catch {
+  } catch (error) {
+    console.error('Download speed measurement failed:', error);
     return 0;
   }
 }
@@ -69,7 +71,8 @@ async function measureUploadSpeed(): Promise<number> {
     const speedMbps = (testData.size * 8) / (duration * 1000000); // Convert to Mbps
     
     return Math.round(speedMbps * 10) / 10;
-  } catch {
+  } catch (error) {
+    console.error('Upload speed measurement failed:', error);
     return 0;
   }
 }

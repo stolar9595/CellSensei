@@ -19,6 +19,12 @@ The system is designed as a full-stack web application with a React-based fronte
 - **Fixed authentication configuration** with proper database-backed session storage
 - **Resolved all type issues** in storage implementation for production deployment
 
+## Bug Fixes (August 14, 2025)
+- **TypeScript Type Error**: Fixed null/undefined type mismatch in schedule.tsx Switch component (line 140) - checked prop now uses nullish coalescing
+- **Missing API Endpoints**: Added missing /api/ping (HEAD) and /api/speed-test/upload (POST) endpoints required by speed test functionality
+- **Error Handling**: Improved error logging in speed-test.ts functions with descriptive console.error messages
+- **API Route Fix**: Corrected ping endpoint path from '/ping-test' to '/api/ping' for consistency
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
