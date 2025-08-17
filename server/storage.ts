@@ -179,15 +179,20 @@ export class DatabaseStorage implements IStorage {
     const latDegrees = radiusKm / 111;
     const lonDegrees = radiusKm / (111 * Math.cos(latitude * Math.PI / 180));
     
+    const minLat = latitude - latDegrees;
+    const maxLat = latitude + latDegrees;
+    const minLon = longitude - lonDegrees;
+    const maxLon = longitude + lonDegrees;
+    
     return await db
       .select()
       .from(cellTowers)
       .where(
         and(
-          gte(cellTowers.latitude, latitude - latDegrees),
-          sql`${cellTowers.latitude} <= ${latitude + latDegrees}`,
-          gte(cellTowers.longitude, longitude - lonDegrees),
-          sql`${cellTowers.longitude} <= ${longitude + lonDegrees}`
+          gte(cellTowers.latitude, minLat),
+          sql`${cellTowers.latitude} <= ${maxLat}`,
+          gte(cellTowers.longitude, minLon),
+          sql`${cellTowers.longitude} <= ${maxLon}`
         )
       );
   }

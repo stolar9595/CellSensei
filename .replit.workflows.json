@@ -2,7 +2,7 @@
   "workflows": [
     {
       "name": "Start application",
-      "run": "npm run dev"
+      "command": "npm run dev"
     }
   ]
 }

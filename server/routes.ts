@@ -23,9 +23,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         environment: process.env.NODE_ENV || 'development'
       });
     } catch (error) {
+      console.error('Health check failed:', error);
       res.status(503).json({ 
         status: 'unhealthy',
-        error: 'Database connection failed'
+        error: 'Database connection failed',
+        details: process.env.NODE_ENV === 'development' ? error instanceof Error ? error.message : 'Unknown error' : undefined
       });
     }
   });
@@ -56,6 +58,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const speedTest = await storage.createSpeedTest(speedTestData);
       res.json(speedTest);
     } catch (error) {
+      console.error("Error creating speed test:", error);
       res.status(400).json({ error: "Invalid speed test data" });
     }
   });
@@ -74,6 +77,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(speedTests);
     } catch (error) {
+      console.error("Error fetching speed tests:", error);
       res.status(500).json({ error: "Failed to fetch speed tests" });
     }
   });

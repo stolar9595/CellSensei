@@ -18,7 +18,11 @@ export const speedTests = pgTable("speed_tests", {
   location: text("location"),
   isAutoTest: boolean("is_auto_test").default(false),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_speed_tests_user_id").on(table.userId),
+  index("idx_speed_tests_timestamp").on(table.timestamp),
+  index("idx_speed_tests_carrier").on(table.carrier),
+]);
 
 export const networkInfo = pgTable("network_info", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -30,7 +34,10 @@ export const networkInfo = pgTable("network_info", {
   latitude: real("latitude"),
   longitude: real("longitude"),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_network_info_timestamp").on(table.timestamp),
+  index("idx_network_info_carrier").on(table.carrier),
+]);
 
 export const cellTowers = pgTable("cell_towers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -64,7 +71,9 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_users_email").on(table.email),
+]);
 
 // Coverage heatmap data points
 export const coveragePoints = pgTable("coverage_points", {
