@@ -145,7 +145,7 @@ export class DatabaseStorage implements IStorage {
       .insert(cellTowers)
       .values([{
         ...insertCellTower,
-        networkTypes: insertCellTower.networkTypes as any
+        networkTypes: insertCellTower.networkTypes as string[]
       }])
       .onConflictDoNothing({ target: cellTowers.towerId })
       .returning();
@@ -276,7 +276,7 @@ export class DatabaseStorage implements IStorage {
       .insert(scheduledTests)
       .values([{
         ...test,
-        times: test.times as any
+        times: test.times as string[] | undefined
       }])
       .returning();
     return scheduledTest;
