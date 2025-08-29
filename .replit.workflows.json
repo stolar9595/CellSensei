@@ -1,8 +1,8 @@
 {
   "workflows": [
     {
-      "name": "SaskNet App",
-      "command": "node start-server.js"
+      "name": "SaskNet Server",
+      "command": "node server.js"
     }
   ]
 }
