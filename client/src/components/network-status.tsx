@@ -17,16 +17,30 @@ export function NetworkStatus() {
     const detectNetwork = async () => {
       setIsDetecting(true);
       try {
-        const info = await detectNetworkInfo();
+        console.log('Starting network detection...');
+        
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Detection timeout')), 5000)
+        );
+        
+        const info = await Promise.race([
+          detectNetworkInfo(),
+          timeoutPromise
+        ]) as NetworkData;
+        
+        console.log('Network detected:', info);
         setNetworkInfo(info);
       } catch (error) {
         console.error("Failed to detect network info:", error);
-        // Use fallback data
-        setNetworkInfo({
+        // Use fallback data immediately
+        const fallbackData = {
           carrier: "SaskTel",
           networkType: "4G LTE", 
           signalStrength: -75
-        });
+        };
+        console.log('Using fallback data:', fallbackData);
+        setNetworkInfo(fallbackData);
       } finally {
         setIsDetecting(false);
       }

@@ -50,24 +50,55 @@ export default function TowerMap() {
   useEffect(() => {
     // Add a small delay to ensure Leaflet is fully loaded
     const initializeMap = () => {
+      console.log('Initializing map...', { mapRef: !!mapRef.current, leaflet: !!window.L });
+      
       if (!mapRef.current || !window.L) {
+        console.log('Retrying map init in 100ms...');
         setTimeout(initializeMap, 100);
         return;
       }
 
-      // Clear any existing map instance
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-      }
+      try {
+        // Clear any existing map instance
+        if (mapInstanceRef.current) {
+          console.log('Removing existing map instance');
+          mapInstanceRef.current.remove();
+        }
 
-      // Initialize map centered on Saskatchewan
-      const map = window.L.map(mapRef.current).setView([52.1332, -106.6700], 10);
-      mapInstanceRef.current = map;
+        console.log('Creating new map instance');
+        
+        // Ensure map container has dimensions
+        const container = mapRef.current;
+        if (container.offsetHeight === 0) {
+          container.style.height = '400px';
+        }
 
-    // Add tile layer
-    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+        // Initialize map centered on Saskatchewan
+        const map = window.L.map(container, {
+          center: [52.1332, -106.6700],
+          zoom: 10,
+          scrollWheelZoom: true,
+          dragging: true,
+          zoomControl: true
+        });
+        
+        console.log('Map created successfully', map);
+        mapInstanceRef.current = map;
+
+        // Add tile layer
+        console.log('Adding tile layer...');
+        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors',
+          maxZoom: 18
+        }).addTo(map);
+        
+        // Force map to invalidate size to ensure proper rendering
+        setTimeout(() => {
+          if (map) {
+            console.log('Invalidating map size...');
+            map.invalidateSize();
+          }
+        }, 100);
 
     // Add user location if available
     if (userLocation) {
@@ -84,15 +115,23 @@ export default function TowerMap() {
       map.setView([userLocation.lat, userLocation.lng], 12);
     }
 
-      return () => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.remove();
-          mapInstanceRef.current = null;
-        }
-      };
+      } catch (error) {
+        console.error('Map initialization failed:', error);
+        // Retry after a longer delay
+        setTimeout(initializeMap, 500);
+      }
     };
 
-    initializeMap();
+    // Start initialization with a small delay
+    setTimeout(initializeMap, 200);
+    
+    return () => {
+      if (mapInstanceRef.current) {
+        console.log('Cleaning up map instance');
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
   }, [userLocation]);
 
   useEffect(() => {
@@ -176,7 +215,11 @@ export default function TowerMap() {
 
       {/* Map */}
       <div className="relative flex-1">
-        <div ref={mapRef} className="h-96 w-full" />
+        <div 
+          ref={mapRef} 
+          className="h-96 w-full rounded-lg bg-gray-100 dark:bg-gray-800" 
+          style={{ minHeight: '400px', height: '400px' }}
+        />
         
         {/* Map Legend */}
         <Card className="absolute top-4 right-4 z-10">
