@@ -48,11 +48,21 @@ export default function TowerMap() {
   }, []);
 
   useEffect(() => {
-    if (!mapRef.current || !window.L) return;
+    // Add a small delay to ensure Leaflet is fully loaded
+    const initializeMap = () => {
+      if (!mapRef.current || !window.L) {
+        setTimeout(initializeMap, 100);
+        return;
+      }
 
-    // Initialize map centered on Saskatchewan
-    const map = window.L.map(mapRef.current).setView([52.1332, -106.6700], 10);
-    mapInstanceRef.current = map;
+      // Clear any existing map instance
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+      }
+
+      // Initialize map centered on Saskatchewan
+      const map = window.L.map(mapRef.current).setView([52.1332, -106.6700], 10);
+      mapInstanceRef.current = map;
 
     // Add tile layer
     window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -74,12 +84,15 @@ export default function TowerMap() {
       map.setView([userLocation.lat, userLocation.lng], 12);
     }
 
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
+      return () => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.remove();
+          mapInstanceRef.current = null;
+        }
+      };
     };
+
+    initializeMap();
   }, [userLocation]);
 
   useEffect(() => {
