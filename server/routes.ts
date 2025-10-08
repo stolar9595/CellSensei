@@ -34,19 +34,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Auth middleware - make optional for development
   let authEnabled = false;
-  try {
-    await setupAuth(app);
-    authEnabled = true;
-  } catch (error) {
-    console.log('Auth setup failed, running without authentication for development');
-    // Fallback: bypass auth for development
+  
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      await setupAuth(app);
+      authEnabled = true;
+    } catch (error) {
+      console.error('Auth setup failed in production:', error);
+      throw error;
+    }
+  } else {
+    console.log('Running in development mode - bypassing authentication');
+    // Development: create a mock user session
     app.use((req: any, res, next) => {
       req.user = { 
-        claims: { sub: 'dev-user-123' },
+        claims: { 
+          sub: 'dev-user-123',
+          email: 'dev@example.com',
+          first_name: 'Dev',
+          last_name: 'User'
+        },
         expires_at: Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
       };
       req.isAuthenticated = () => true;
       next();
+    });
+    
+    // Ensure dev user exists in database
+    await storage.upsertUser({
+      id: 'dev-user-123',
+      email: 'dev@example.com',
+      firstName: 'Dev',
+      lastName: 'User',
     });
   }
 
