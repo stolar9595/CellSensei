@@ -33,20 +33,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Auth middleware - make optional for development
+  let authEnabled = false;
   try {
     await setupAuth(app);
+    authEnabled = true;
   } catch (error) {
     console.log('Auth setup failed, running without authentication for development');
     // Fallback: bypass auth for development
     app.use((req: any, res, next) => {
-      req.user = { claims: { sub: 'dev-user-123' } };
+      req.user = { 
+        claims: { sub: 'dev-user-123' },
+        expires_at: Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
+      };
       req.isAuthenticated = () => true;
       next();
     });
   }
 
+  // Create a conditional auth middleware
+  const optionalAuth = authEnabled ? isAuthenticated : (req: any, res: any, next: any) => next();
+
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', optionalAuth, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
