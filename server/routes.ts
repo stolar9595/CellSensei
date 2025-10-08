@@ -201,7 +201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Outage Report Routes
-  app.post("/api/outage-reports", isAuthenticated, async (req: any, res) => {
+  app.post("/api/outage-reports", optionalAuth, async (req: any, res) => {
     try {
       const reportData = insertOutageReportSchema.parse(req.body);
       reportData.userId = req.user.claims.sub;
@@ -233,7 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Scheduled Test Routes
-  app.get("/api/scheduled-tests", isAuthenticated, async (req: any, res) => {
+  app.get("/api/scheduled-tests", optionalAuth, async (req: any, res) => {
     try {
       const tests = await storage.getScheduledTests(req.user.claims.sub);
       res.json(tests);
@@ -242,7 +242,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/scheduled-tests", isAuthenticated, async (req: any, res) => {
+  app.post("/api/scheduled-tests", optionalAuth, async (req: any, res) => {
     try {
       const testData = insertScheduledTestSchema.parse(req.body);
       testData.userId = req.user.claims.sub;
@@ -253,7 +253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/scheduled-tests/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/scheduled-tests/:id", optionalAuth, async (req, res) => {
     try {
       await storage.updateScheduledTest(req.params.id, req.body);
       res.json({ success: true });
@@ -263,7 +263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Data Usage Routes
-  app.get("/api/data-usage", isAuthenticated, async (req: any, res) => {
+  app.get("/api/data-usage", optionalAuth, async (req: any, res) => {
     try {
       const days = req.query.days ? parseInt(req.query.days as string) : 30;
       const usage = await storage.getDataUsage(req.user.claims.sub, days);
@@ -273,7 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/data-usage/by-app", isAuthenticated, async (req: any, res) => {
+  app.get("/api/data-usage/by-app", optionalAuth, async (req: any, res) => {
     try {
       const usage = await storage.getDataUsageByApp(req.user.claims.sub);
       res.json(usage);
@@ -282,7 +282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/data-usage", isAuthenticated, async (req: any, res) => {
+  app.post("/api/data-usage", optionalAuth, async (req: any, res) => {
     try {
       const usageData = insertDataUsageSchema.parse(req.body);
       usageData.userId = req.user.claims.sub;
