@@ -26,7 +26,7 @@ export async function getCurrentLocation(): Promise<LocationData | null> {
         });
       },
       (error) => {
-        console.error("Geolocation error:", error);
+        // Silently handle geolocation errors (e.g., permission denied, timeout)
         // Return null for graceful degradation when location access is denied
         resolve(null);
       },
@@ -124,7 +124,7 @@ export function watchLocation(callback: (location: LocationData) => void): () =>
       });
     },
     (error) => {
-      console.error("Geolocation watch error:", error);
+      // Silently handle watch errors for graceful degradation
     },
     {
       enableHighAccuracy: true,

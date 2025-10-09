@@ -20,8 +20,7 @@ export function NetworkStatus() {
         const info = await detectNetworkInfo();
         setNetworkInfo(info);
       } catch (error) {
-        console.error("Failed to detect network info:", error);
-        // Use fallback data immediately
+        // Silently use fallback data when network detection fails
         const fallbackData = {
           carrier: "SaskTel",
           networkType: "4G LTE", 

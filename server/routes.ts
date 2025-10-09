@@ -150,8 +150,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lng = req.query.lng ? parseFloat(req.query.lng as string) : undefined;
       const radius = req.query.radius ? parseFloat(req.query.radius as string) : 50;
 
+      // Validate parsed numbers
+      if (lat !== undefined && isNaN(lat)) {
+        return res.status(400).json({ error: "Invalid latitude parameter" });
+      }
+      if (lng !== undefined && isNaN(lng)) {
+        return res.status(400).json({ error: "Invalid longitude parameter" });
+      }
+      if (isNaN(radius)) {
+        return res.status(400).json({ error: "Invalid radius parameter" });
+      }
+
       let towers;
-      if (lat && lng) {
+      if (lat !== undefined && lng !== undefined) {
         towers = await storage.getNearbyTowers(lat, lng, radius);
       } else if (carrier) {
         towers = await storage.getCellTowersByCarrier(carrier);

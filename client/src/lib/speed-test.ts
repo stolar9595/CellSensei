@@ -78,16 +78,29 @@ async function measureUploadSpeed(): Promise<number> {
 }
 
 async function measureJitter(): Promise<number> {
-  const pings: number[] = [];
-  
-  for (let i = 0; i < 5; i++) {
-    const ping = await measurePing();
-    pings.push(ping);
-    await new Promise(resolve => setTimeout(resolve, 100));
+  try {
+    const pings: number[] = [];
+    
+    for (let i = 0; i < 5; i++) {
+      const ping = await measurePing();
+      // Filter out error values (999)
+      if (ping < 999) {
+        pings.push(ping);
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    // If we don't have enough valid pings, return 0
+    if (pings.length < 2) {
+      return 0;
+    }
+    
+    const avgPing = pings.reduce((a, b) => a + b, 0) / pings.length;
+    const jitter = Math.sqrt(pings.reduce((sum, ping) => sum + Math.pow(ping - avgPing, 2), 0) / pings.length);
+    
+    return Math.round(jitter * 10) / 10;
+  } catch (error) {
+    console.error('Jitter measurement failed:', error);
+    return 0;
   }
-  
-  const avgPing = pings.reduce((a, b) => a + b, 0) / pings.length;
-  const jitter = Math.sqrt(pings.reduce((sum, ping) => sum + Math.pow(ping - avgPing, 2), 0) / pings.length);
-  
-  return Math.round(jitter * 10) / 10;
 }
