@@ -32,7 +32,7 @@ export async function getCurrentLocation(): Promise<LocationData | null> {
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 3000,
         maximumAge: 300000, // 5 minutes
       }
     );

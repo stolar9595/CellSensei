@@ -17,19 +17,7 @@ export function NetworkStatus() {
     const detectNetwork = async () => {
       setIsDetecting(true);
       try {
-        console.log('Starting network detection...');
-        
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Detection timeout')), 5000)
-        );
-        
-        const info = await Promise.race([
-          detectNetworkInfo(),
-          timeoutPromise
-        ]) as NetworkData;
-        
-        console.log('Network detected:', info);
+        const info = await detectNetworkInfo();
         setNetworkInfo(info);
       } catch (error) {
         console.error("Failed to detect network info:", error);
@@ -39,7 +27,6 @@ export function NetworkStatus() {
           networkType: "4G LTE", 
           signalStrength: -75
         };
-        console.log('Using fallback data:', fallbackData);
         setNetworkInfo(fallbackData);
       } finally {
         setIsDetecting(false);
