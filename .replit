@@ -16,7 +16,9 @@ channel = "stable-25_05"
 
 [deployment]
 run = ["npm", "run", "start"]
-deploymentTarget = "cloudrun"
+deploymentTarget = "autoscale"
+publicDir = "dist/public"
+build = ["npm", "run", "build"]
 
 [rules]
 
