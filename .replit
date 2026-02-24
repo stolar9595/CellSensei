@@ -2,6 +2,7 @@ modules = ["nodejs-20", "web", "bash"]
 run = "npm run dev"
 [agent]
 integrations = ["javascript_log_in_with_replit:1.0.0"]
+expertMode = true
 
 [[ports]]
 localPort = 5000
@@ -25,3 +26,27 @@ deploymentTarget = "cloudrun"
 
 [rules.formatter.fileExtensions.".tsx"]
 id = "module:nodejs-20/languageServer:typescript-language-server"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
