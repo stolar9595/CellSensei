@@ -81,6 +81,7 @@ export function SpeedTestModal({ isOpen, onClose }: SpeedTestModalProps) {
         longitude: location?.longitude,
       });
 
+      setIsRunning(false);
     } catch (error) {
       toast({
         title: "Speed test failed",

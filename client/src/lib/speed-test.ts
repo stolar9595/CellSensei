@@ -37,17 +37,16 @@ async function measurePing(): Promise<number> {
 }
 
 async function measureDownloadSpeed(): Promise<number> {
-  const testSize = 5 * 1024 * 1024; // 5MB
+  const testSize = 1 * 1024 * 1024; // 1MB test payload
   const start = performance.now();
   
   try {
-    // Create a test download by fetching a large response
-    const response = await fetch(`data:application/octet-stream;base64,${'A'.repeat(testSize)}`);
-    await response.blob();
+    const response = await fetch(`/api/speed-test/download?size=${testSize}&t=${Date.now()}`);
+    await response.arrayBuffer();
     
     const end = performance.now();
-    const duration = (end - start) / 1000; // Convert to seconds
-    const speedMbps = (testSize * 8) / (duration * 1000000); // Convert to Mbps
+    const duration = (end - start) / 1000;
+    const speedMbps = (testSize * 8) / (duration * 1000000);
     
     return Math.round(speedMbps * 10) / 10;
   } catch (error) {

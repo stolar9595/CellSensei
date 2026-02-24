@@ -42,7 +42,7 @@ export default function DataUsagePage() {
   };
 
   const getUsageRecommendation = (app: AppUsage) => {
-    const percentage = (app.totalUsage / totalUsage) * 100;
+    const percentage = totalUsage > 0 ? (app.totalUsage / totalUsage) * 100 : 0;
     if (percentage > 30) {
       return { text: "High usage - Consider WiFi", color: "text-red-600" };
     } else if (percentage > 15) {
@@ -85,7 +85,7 @@ export default function DataUsagePage() {
                 <div className="flex items-center justify-between mb-2">
                   <Wifi className="text-blue-600" size={20} />
                   <span className="text-sm font-semibold text-blue-600">
-                    {((wifiUsage / totalUsage) * 100).toFixed(0)}%
+                    {totalUsage > 0 ? ((wifiUsage / totalUsage) * 100).toFixed(0) : 0}%
                   </span>
                 </div>
                 <div className="text-2xl font-bold text-gray-900">
@@ -98,7 +98,7 @@ export default function DataUsagePage() {
                 <div className="flex items-center justify-between mb-2">
                   <Smartphone className="text-orange-600" size={20} />
                   <span className="text-sm font-semibold text-orange-600">
-                    {((cellularUsage / totalUsage) * 100).toFixed(0)}%
+                    {totalUsage > 0 ? ((cellularUsage / totalUsage) * 100).toFixed(0) : 0}%
                   </span>
                 </div>
                 <div className="text-2xl font-bold text-gray-900">
@@ -122,7 +122,7 @@ export default function DataUsagePage() {
             <CardContent className="space-y-3">
               {appUsage.slice(0, 5).map((app, index) => {
                 const recommendation = getUsageRecommendation(app);
-                const percentage = (app.totalUsage / totalUsage) * 100;
+                const percentage = totalUsage > 0 ? (app.totalUsage / totalUsage) * 100 : 0;
                 
                 return (
                   <div key={app.appName} className="space-y-2">
@@ -178,7 +178,7 @@ export default function DataUsagePage() {
                     Limit {appUsage[0].appName} on Cellular
                   </p>
                   <p className="text-xs text-gray-600">
-                    This app uses {((appUsage[0].totalUsage / totalUsage) * 100).toFixed(0)}% of your data. 
+                    This app uses {totalUsage > 0 ? ((appUsage[0].totalUsage / totalUsage) * 100).toFixed(0) : 0}% of your data. 
                     Consider using it only on WiFi.
                   </p>
                 </div>

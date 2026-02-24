@@ -181,6 +181,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(200).end();
   });
 
+  // Download endpoint for speed test measurement
+  app.get("/api/speed-test/download", (req, res) => {
+    const size = Math.min(parseInt(req.query.size as string) || 1048576, 5242880); // Max 5MB
+    res.set({
+      'Content-Type': 'application/octet-stream',
+      'Content-Length': size.toString(),
+      'Cache-Control': 'no-store',
+    });
+    const chunk = Buffer.alloc(Math.min(size, 65536), 0);
+    let remaining = size;
+    while (remaining > 0) {
+      const toWrite = Math.min(remaining, chunk.length);
+      res.write(toWrite === chunk.length ? chunk : chunk.subarray(0, toWrite));
+      remaining -= toWrite;
+    }
+    res.end();
+  });
+
   // Upload endpoint for speed test measurement
   app.post("/api/speed-test/upload", (req, res) => {
     // Simply accept the upload data and return success

@@ -26,10 +26,9 @@ export default function Home() {
   const [isSpeedTestOpen, setIsSpeedTestOpen] = useState(false);
   const { user } = useAuth();
 
-  // Get latest speed test
+  // Get speed tests
   const { data: speedTests } = useQuery<SpeedTest[]>({
     queryKey: ["/api/speed-tests"],
-    select: (data) => data?.slice(0, 1) || [],
   });
 
   // Get nearby towers
