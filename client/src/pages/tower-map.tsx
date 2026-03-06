@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin, Layers, Search } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { MapPin, Search, Navigation, ChevronUp, ChevronDown, Signal, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BottomNavigation } from "@/components/bottom-navigation";
-import { CarrierDot } from "@/components/carrier-colors";
 import { type CellTower } from "@shared/schema";
 import { getCurrentLocation } from "@/lib/geolocation";
 
@@ -15,119 +13,107 @@ declare global {
   }
 }
 
+const carrierConfig: Record<string, { color: string; bg: string; text: string; border: string }> = {
+  SaskTel: { color: "#16a34a", bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
+  Bell: { color: "#2563eb", bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+  Telus: { color: "#7c3aed", bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
+  Rogers: { color: "#dc2626", bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+};
+
+function getCarrierStyle(carrier: string) {
+  return carrierConfig[carrier] || { color: "#6b7280", bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200" };
+}
+
 export default function TowerMap() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const [selectedCarrier, setSelectedCarrier] = useState<string>("all");
-  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [listExpanded, setListExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: towers = [] } = useQuery<CellTower[]>({
     queryKey: ["/api/cell-towers"],
   });
 
-  const filteredTowers = selectedCarrier === "all" 
-    ? towers 
-    : towers.filter(tower => tower.carrier === selectedCarrier);
-
-  const carrierColors = {
-    SaskTel: "#2E7D32",
-    Bell: "#1565C0", 
-    Telus: "#7B1FA2",
-    Rogers: "#D32F2F",
-  };
+  const filteredTowers = (selectedCarrier === "all"
+    ? towers
+    : towers.filter((tower) => tower.carrier === selectedCarrier)
+  ).filter((tower) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      tower.carrier.toLowerCase().includes(q) ||
+      tower.towerId.toLowerCase().includes(q) ||
+      (tower.address && tower.address.toLowerCase().includes(q)) ||
+      tower.networkTypes.some((t) => t.toLowerCase().includes(q))
+    );
+  });
 
   useEffect(() => {
-    getCurrentLocation().then(location => {
+    getCurrentLocation().then((location) => {
       if (location) {
-        setUserLocation({
-          lat: location.latitude,
-          lng: location.longitude
-        });
+        setUserLocation({ lat: location.latitude, lng: location.longitude });
       }
     });
   }, []);
 
   useEffect(() => {
-    // Add a small delay to ensure Leaflet is fully loaded
     const initializeMap = () => {
-      console.log('Initializing map...', { mapRef: !!mapRef.current, leaflet: !!window.L });
-      
       if (!mapRef.current || !window.L) {
-        console.log('Retrying map init in 100ms...');
         setTimeout(initializeMap, 100);
         return;
       }
 
       try {
-        // Clear any existing map instance
         if (mapInstanceRef.current) {
-          console.log('Removing existing map instance');
           mapInstanceRef.current.remove();
         }
 
-        console.log('Creating new map instance');
-        
-        // Ensure map container has dimensions
         const container = mapRef.current;
         if (container.offsetHeight === 0) {
-          container.style.height = '400px';
+          container.style.height = "400px";
         }
 
-        // Initialize map centered on Saskatchewan
         const map = window.L.map(container, {
-          center: [52.1332, -106.6700],
+          center: [52.1332, -106.67],
           zoom: 10,
           scrollWheelZoom: true,
           dragging: true,
-          zoomControl: true
+          zoomControl: true,
         });
-        
-        console.log('Map created successfully', map);
+
         mapInstanceRef.current = map;
 
-        // Add tile layer
-        console.log('Adding tile layer...');
-        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap contributors',
-          maxZoom: 18
+        window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap contributors",
+          maxZoom: 18,
         }).addTo(map);
-        
-        // Force map to invalidate size to ensure proper rendering
+
         setTimeout(() => {
-          if (map) {
-            console.log('Invalidating map size...');
-            map.invalidateSize();
-          }
+          if (map) map.invalidateSize();
         }, 100);
 
-    // Add user location if available
-    if (userLocation) {
-      const userMarker = window.L.circleMarker([userLocation.lat, userLocation.lng], {
-        color: '#ef4444',
-        fillColor: '#ef4444',
-        fillOpacity: 0.8,
-        radius: 8
-      }).addTo(map);
-      
-      userMarker.bindPopup("Your Location");
-      
-      // Center map on user location
-      map.setView([userLocation.lat, userLocation.lng], 12);
-    }
-
+        if (userLocation) {
+          const userMarker = window.L.circleMarker([userLocation.lat, userLocation.lng], {
+            color: "#ef4444",
+            fillColor: "#ef4444",
+            fillOpacity: 0.8,
+            radius: 8,
+          }).addTo(map);
+          userMarker.bindPopup("Your Location");
+          map.setView([userLocation.lat, userLocation.lng], 12);
+        }
       } catch (error) {
-        console.error('Map initialization failed:', error);
-        // Retry after a longer delay
+        console.error("Map initialization failed:", error);
         setTimeout(initializeMap, 500);
       }
     };
 
-    // Start initialization with a small delay
     setTimeout(initializeMap, 200);
-    
+
     return () => {
       if (mapInstanceRef.current) {
-        console.log('Cleaning up map instance');
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
@@ -137,35 +123,58 @@ export default function TowerMap() {
   useEffect(() => {
     if (!mapInstanceRef.current || !window.L) return;
 
-    // Clear existing tower markers
     mapInstanceRef.current.eachLayer((layer: any) => {
       if (layer.options && layer.options.towerMarker) {
         mapInstanceRef.current.removeLayer(layer);
       }
     });
 
-    // Add tower markers
-    filteredTowers.forEach(tower => {
-      const color = carrierColors[tower.carrier as keyof typeof carrierColors] || "#666666";
-      
+    filteredTowers.forEach((tower) => {
+      const style = getCarrierStyle(tower.carrier);
+
       const marker = window.L.circleMarker([tower.latitude, tower.longitude], {
-        color: color,
-        fillColor: color,
+        color: style.color,
+        fillColor: style.color,
         fillOpacity: 0.7,
         radius: 6,
-        towerMarker: true
+        towerMarker: true,
       }).addTo(mapInstanceRef.current);
 
       marker.bindPopup(`
-        <div>
-          <strong>${tower.carrier} Tower</strong><br>
-          <small>${tower.towerId}</small><br>
-          ${tower.networkTypes.join(", ")}<br>
-          ${tower.address || ""}
+        <div style="font-family: system-ui, sans-serif; min-width: 140px;">
+          <div style="font-weight: 600; font-size: 14px; color: ${style.color}; margin-bottom: 4px;">${tower.carrier}</div>
+          <div style="font-size: 12px; color: #6b7280; margin-bottom: 2px;">${tower.towerId}</div>
+          <div style="font-size: 12px; color: #374151;">${tower.networkTypes.join(", ")}</div>
+          ${tower.address ? `<div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">${tower.address}</div>` : ""}
         </div>
       `);
     });
   }, [filteredTowers]);
+
+  const goToTower = (tower: CellTower) => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setView([tower.latitude, tower.longitude], 16, {
+        animate: true,
+        duration: 0.5,
+      });
+
+      mapInstanceRef.current.eachLayer((layer: any) => {
+        if (layer.options && layer.options.towerMarker) {
+          const latlng = layer.getLatLng();
+          if (
+            Math.abs(latlng.lat - tower.latitude) < 0.0001 &&
+            Math.abs(latlng.lng - tower.longitude) < 0.0001
+          ) {
+            layer.openPopup();
+          }
+        }
+      });
+
+      if (listExpanded) {
+        setListExpanded(false);
+      }
+    }
+  };
 
   const carrierCounts = towers.reduce((acc, tower) => {
     acc[tower.carrier] = (acc[tower.carrier] || 0) + 1;
@@ -173,104 +182,174 @@ export default function TowerMap() {
   }, {} as Record<string, number>);
 
   return (
-    <div className="max-w-md mx-auto bg-white min-h-screen relative">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-primary to-blue-600 text-white px-6 py-6">
-        <h1 className="text-2xl font-bold mb-2">Tower Map</h1>
-        <p className="text-blue-100">Cell towers across Saskatchewan</p>
+    <div className="max-w-md mx-auto bg-gray-50 min-h-screen relative flex flex-col">
+      <div className="bg-gradient-to-r from-primary to-blue-600 text-white px-5 py-5">
+        <h1 className="text-xl font-bold">Tower Map</h1>
+        <p className="text-blue-100 text-sm mt-0.5">Cell towers across Saskatchewan</p>
       </div>
 
-      {/* Controls */}
-      <div className="px-4 py-4 bg-white border-b">
-        <div className="flex items-center space-x-2 mb-3">
-          <Search size={16} className="text-gray-400" />
-          <Input 
-            placeholder="Search location..." 
-            className="flex-1"
+      <div className="px-4 py-3 bg-white border-b border-gray-100">
+        <div className="relative mb-3">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Input
+            placeholder="Search towers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 h-9 text-sm bg-gray-50 border-gray-200"
           />
         </div>
-        
-        <div className="flex items-center space-x-2 overflow-x-auto">
-          <Button
-            variant={selectedCarrier === "all" ? "default" : "outline"}
-            size="sm"
+
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+          <button
             onClick={() => setSelectedCarrier("all")}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+              selectedCarrier === "all"
+                ? "bg-gray-900 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
           >
             All ({towers.length})
-          </Button>
-          {Object.entries(carrierCounts).map(([carrier, count]) => (
-            <Button
-              key={carrier}
-              variant={selectedCarrier === carrier ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedCarrier(carrier)}
-              className="whitespace-nowrap"
-            >
-              <CarrierDot carrier={carrier} className="mr-1" />
-              {carrier} ({count})
-            </Button>
+          </button>
+          {Object.entries(carrierCounts).map(([carrier, count]) => {
+            const style = getCarrierStyle(carrier);
+            const isActive = selectedCarrier === carrier;
+            return (
+              <button
+                key={carrier}
+                onClick={() => setSelectedCarrier(carrier)}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${
+                  isActive
+                    ? `${style.bg} ${style.text} ring-1 ${style.border}`
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: style.color }}
+                />
+                {carrier} ({count})
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="relative flex-1">
+        <div
+          ref={mapRef}
+          className="w-full bg-gray-100"
+          style={{ height: listExpanded ? "250px" : "400px", transition: "height 0.3s ease" }}
+        />
+
+        <div className="absolute top-3 right-3 z-[1000] bg-white/95 backdrop-blur-sm rounded-lg shadow-md px-3 py-2.5 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-red-200" />
+            <span className="text-[11px] text-gray-600">You</span>
+          </div>
+          {Object.entries(carrierConfig).map(([carrier, cfg]) => (
+            <div key={carrier} className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cfg.color }} />
+              <span className="text-[11px] text-gray-600">{carrier}</span>
+            </div>
           ))}
         </div>
       </div>
 
-      {/* Map */}
-      <div className="relative flex-1">
-        <div 
-          ref={mapRef} 
-          className="h-96 w-full rounded-lg bg-gray-100 dark:bg-gray-800" 
-          style={{ minHeight: '400px', height: '400px' }}
-        />
-        
-        {/* Map Legend */}
-        <Card className="absolute top-4 right-4 z-10">
-          <CardContent className="p-3">
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span className="text-xs">Your Location</span>
-              </div>
-              {Object.entries(carrierColors).map(([carrier, color]) => (
-                <div key={carrier} className="flex items-center space-x-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: color }}
-                  ></div>
-                  <span className="text-xs">{carrier}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <div className="bg-white border-t border-gray-200 flex flex-col" style={{ maxHeight: listExpanded ? "50vh" : "auto" }}>
+        <button
+          onClick={() => {
+            setListExpanded(!listExpanded);
+            setTimeout(() => {
+              mapInstanceRef.current?.invalidateSize();
+            }, 350);
+          }}
+          className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Radio size={15} className="text-primary" />
+            <span className="font-semibold text-sm text-gray-900">
+              Nearby Towers
+            </span>
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+              {filteredTowers.length}
+            </span>
+          </div>
+          {listExpanded ? (
+            <ChevronDown size={16} className="text-gray-400" />
+          ) : (
+            <ChevronUp size={16} className="text-gray-400" />
+          )}
+        </button>
 
-      {/* Tower List */}
-      <div className="px-4 py-4 pb-24 space-y-3 max-h-48 overflow-y-auto">
-        <h3 className="font-semibold text-gray-900 sticky top-0 bg-white py-2">
-          Nearby Towers ({filteredTowers.length})
-        </h3>
-        
-        {filteredTowers.map(tower => (
-          <Card key={tower.id}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <CarrierDot carrier={tower.carrier} />
-                  <div>
-                    <div className="font-medium text-sm">{tower.carrier} Tower</div>
-                    <div className="text-xs text-gray-500">{tower.towerId}</div>
-                    <div className="text-xs text-gray-500">{tower.address}</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-semibold">{tower.networkTypes.join(", ")}</div>
-                  <div className="text-xs text-gray-500">
-                    {tower.range && `${tower.range} km range`}
-                  </div>
-                </div>
+        {listExpanded && (
+          <div className="overflow-y-auto flex-1 px-3 pb-24">
+            {filteredTowers.length === 0 ? (
+              <div className="text-center py-8 text-gray-400 text-sm">
+                No towers found
               </div>
-            </CardContent>
-          </Card>
-        ))}
+            ) : (
+              <div className="space-y-2 pb-2">
+                {filteredTowers.map((tower) => {
+                  const style = getCarrierStyle(tower.carrier);
+                  return (
+                    <div
+                      key={tower.id}
+                      className={`rounded-lg border ${style.border} ${style.bg} p-3 transition-all hover:shadow-sm`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                            style={{ backgroundColor: style.color + "18" }}
+                          >
+                            <Signal size={14} style={{ color: style.color }} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`font-semibold text-sm ${style.text}`}>
+                                {tower.carrier}
+                              </span>
+                              <span className="text-[11px] text-gray-400 font-mono truncate">
+                                {tower.towerId}
+                              </span>
+                            </div>
+                            {tower.address && (
+                              <p className="text-xs text-gray-500 mt-0.5 truncate">
+                                {tower.address}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                              {tower.networkTypes.map((type) => (
+                                <span
+                                  key={type}
+                                  className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/80 text-gray-600 border border-gray-200/60"
+                                >
+                                  {type}
+                                </span>
+                              ))}
+                              {tower.range && (
+                                <span className="text-[10px] text-gray-400 ml-1">
+                                  {tower.range} km
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => goToTower(tower)}
+                          className="shrink-0 w-8 h-8 rounded-full bg-white shadow-sm border border-gray-200 flex items-center justify-center hover:bg-gray-50 hover:shadow transition-all active:scale-95"
+                          title="Go to tower location"
+                        >
+                          <Navigation size={14} className="text-primary" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <BottomNavigation />
