@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin, Search, Navigation, ChevronUp, ChevronDown, Signal, Radio } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search, Navigation, ChevronUp, ChevronDown, Signal, Radio } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { type CellTower } from "@shared/schema";
@@ -27,10 +26,12 @@ function getCarrierStyle(carrier: string) {
 export default function TowerMap() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+  const markersLayerRef = useRef<any>(null);
   const [selectedCarrier, setSelectedCarrier] = useState<string>("all");
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [listExpanded, setListExpanded] = useState(false);
+  const [listExpanded, setListExpanded] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [mapReady, setMapReady] = useState(false);
 
   const { data: towers = [] } = useQuery<CellTower[]>({
     queryKey: ["/api/cell-towers"],
@@ -59,31 +60,40 @@ export default function TowerMap() {
   }, []);
 
   useEffect(() => {
+    let retryCount = 0;
+    const maxRetries = 50;
+
     const initializeMap = () => {
       if (!mapRef.current || !window.L) {
-        setTimeout(initializeMap, 100);
+        retryCount++;
+        if (retryCount < maxRetries) {
+          setTimeout(initializeMap, 100);
+        }
         return;
       }
 
       try {
         if (mapInstanceRef.current) {
           mapInstanceRef.current.remove();
+          mapInstanceRef.current = null;
+          markersLayerRef.current = null;
         }
 
         const container = mapRef.current;
-        if (container.offsetHeight === 0) {
-          container.style.height = "400px";
-        }
+
+        const defaultCenter: [number, number] = [52.1332, -106.67];
+        const defaultZoom = 10;
 
         const map = window.L.map(container, {
-          center: [52.1332, -106.67],
-          zoom: 10,
+          center: defaultCenter,
+          zoom: defaultZoom,
           scrollWheelZoom: true,
           dragging: true,
           zoomControl: true,
         });
 
         mapInstanceRef.current = map;
+        markersLayerRef.current = window.L.layerGroup().addTo(map);
 
         window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: "&copy; OpenStreetMap contributors",
@@ -92,42 +102,58 @@ export default function TowerMap() {
 
         setTimeout(() => {
           if (map) map.invalidateSize();
-        }, 100);
+        }, 200);
 
-        if (userLocation) {
-          const userMarker = window.L.circleMarker([userLocation.lat, userLocation.lng], {
-            color: "#ef4444",
-            fillColor: "#ef4444",
-            fillOpacity: 0.8,
-            radius: 8,
-          }).addTo(map);
-          userMarker.bindPopup("Your Location");
-          map.setView([userLocation.lat, userLocation.lng], 12);
-        }
+        setMapReady(true);
       } catch (error) {
         console.error("Map initialization failed:", error);
-        setTimeout(initializeMap, 500);
+        retryCount++;
+        if (retryCount < maxRetries) {
+          setTimeout(initializeMap, 500);
+        }
       }
     };
 
-    setTimeout(initializeMap, 200);
+    setTimeout(initializeMap, 100);
 
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
+        markersLayerRef.current = null;
+        setMapReady(false);
       }
     };
-  }, [userLocation]);
+  }, []);
 
   useEffect(() => {
-    if (!mapInstanceRef.current || !window.L) return;
+    if (!mapReady || !mapInstanceRef.current || !userLocation) return;
 
-    mapInstanceRef.current.eachLayer((layer: any) => {
-      if (layer.options && layer.options.towerMarker) {
-        mapInstanceRef.current.removeLayer(layer);
+    const map = mapInstanceRef.current;
+    const L = window.L;
+    if (!L) return;
+
+    map.eachLayer((layer: any) => {
+      if (layer.options && layer.options.isUserMarker) {
+        map.removeLayer(layer);
       }
     });
+
+    const userMarker = L.circleMarker([userLocation.lat, userLocation.lng], {
+      color: "#ef4444",
+      fillColor: "#ef4444",
+      fillOpacity: 0.8,
+      radius: 8,
+      isUserMarker: true,
+    }).addTo(map);
+    userMarker.bindPopup("Your Location");
+    map.setView([userLocation.lat, userLocation.lng], 12);
+  }, [mapReady, userLocation]);
+
+  useEffect(() => {
+    if (!mapReady || !markersLayerRef.current || !window.L) return;
+
+    markersLayerRef.current.clearLayers();
 
     filteredTowers.forEach((tower) => {
       const style = getCarrierStyle(tower.carrier);
@@ -138,7 +164,7 @@ export default function TowerMap() {
         fillOpacity: 0.7,
         radius: 6,
         towerMarker: true,
-      }).addTo(mapInstanceRef.current);
+      });
 
       marker.bindPopup(`
         <div style="font-family: system-ui, sans-serif; min-width: 140px;">
@@ -148,18 +174,20 @@ export default function TowerMap() {
           ${tower.address ? `<div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">${tower.address}</div>` : ""}
         </div>
       `);
-    });
-  }, [filteredTowers]);
 
-  const goToTower = (tower: CellTower) => {
+      markersLayerRef.current.addLayer(marker);
+    });
+  }, [mapReady, filteredTowers]);
+
+  const goToTower = useCallback((tower: CellTower) => {
     if (mapInstanceRef.current) {
       mapInstanceRef.current.setView([tower.latitude, tower.longitude], 16, {
         animate: true,
         duration: 0.5,
       });
 
-      mapInstanceRef.current.eachLayer((layer: any) => {
-        if (layer.options && layer.options.towerMarker) {
+      if (markersLayerRef.current) {
+        markersLayerRef.current.eachLayer((layer: any) => {
           const latlng = layer.getLatLng();
           if (
             Math.abs(latlng.lat - tower.latitude) < 0.0001 &&
@@ -167,14 +195,24 @@ export default function TowerMap() {
           ) {
             layer.openPopup();
           }
-        }
-      });
+        });
+      }
 
       if (listExpanded) {
         setListExpanded(false);
+        setTimeout(() => {
+          mapInstanceRef.current?.invalidateSize();
+        }, 350);
       }
     }
-  };
+  }, [listExpanded]);
+
+  const toggleList = useCallback(() => {
+    setListExpanded((prev) => !prev);
+    setTimeout(() => {
+      mapInstanceRef.current?.invalidateSize();
+    }, 350);
+  }, []);
 
   const carrierCounts = towers.reduce((acc, tower) => {
     acc[tower.carrier] = (acc[tower.carrier] || 0) + 1;
@@ -234,7 +272,7 @@ export default function TowerMap() {
         </div>
       </div>
 
-      <div className="relative flex-1">
+      <div className="relative">
         <div
           ref={mapRef}
           className="w-full bg-gray-100"
@@ -255,15 +293,10 @@ export default function TowerMap() {
         </div>
       </div>
 
-      <div className="bg-white border-t border-gray-200 flex flex-col" style={{ maxHeight: listExpanded ? "50vh" : "auto" }}>
+      <div className="bg-white border-t border-gray-200 flex flex-col flex-1" style={{ minHeight: listExpanded ? "40vh" : "auto" }}>
         <button
-          onClick={() => {
-            setListExpanded(!listExpanded);
-            setTimeout(() => {
-              mapInstanceRef.current?.invalidateSize();
-            }, 350);
-          }}
-          className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+          onClick={toggleList}
+          className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100"
         >
           <div className="flex items-center gap-2">
             <Radio size={15} className="text-primary" />
@@ -282,13 +315,13 @@ export default function TowerMap() {
         </button>
 
         {listExpanded && (
-          <div className="overflow-y-auto flex-1 px-3 pb-24">
+          <div className="overflow-y-auto flex-1 px-3 py-2 pb-24">
             {filteredTowers.length === 0 ? (
               <div className="text-center py-8 text-gray-400 text-sm">
                 No towers found
               </div>
             ) : (
-              <div className="space-y-2 pb-2">
+              <div className="space-y-2">
                 {filteredTowers.map((tower) => {
                   const style = getCarrierStyle(tower.carrier);
                   return (
